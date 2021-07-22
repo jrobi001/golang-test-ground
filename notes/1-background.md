@@ -186,6 +186,8 @@ https://pkg.go.dev/fmt
 
   - As with python when using `.format()` the things to insert/format into strings are passed after the string, separated by commas
 
+**NOTE:** You can use the inbuilt `println()` method instead of `fmt.Pintln()` (to save time) when checking values and diagnosing code, however for production/ publishing `fmt.Println` is the correct method [link](https://golang.org/ref/spec#Bootstrapping)
+
 ### Creating own types
 
 - Golang has a stronger emphasis on types than many other languages, with an inability to compare different types e.g. you cannot say `2 == 2.0` without converting/casting one of the values so that both are the same.
@@ -264,3 +266,420 @@ https://blog.golang.org/strings
 
   - For many English characters where ASCII rules still apply, converting the bytes from string positions may return the original characters, however this will not work for any char which is represented by 2 or more bytes in UTF-8 coding.
 
+### Loops
+
+- No separate while statement in golang, however the for loop can do rather similar things
+
+- Several ways of writing loops: generally can initialise counting variable outside the loop (before) and increment within, or use the standard method (with a for clause):
+
+  ```go
+  // standard for loop (with a for clause)
+  for i := 0; i < 5; i++ {
+      fmt.Println("yes")
+  }
+  
+  // initialise outside
+  j := 0
+  for j <= 5 {
+  	fmt.Println("yes")
+  	j ++
+  }
+  ```
+
+- The second for loop above is an example of a **"for statement"** (which is more than a little similar to a while loop). A for statement will continue looping as long as a Boolean condition evaluates to true (with the evaluation occurring before each iteration of the loop - like a while loop~):
+
+  ```go
+  a := "a"
+  for a != "aaaaaaa" {
+      a = a + "a"
+  }
+  
+  // or something even more while loopy
+  c := true
+  for c {
+      a = a + "a"
+      if a == "aaaaaaaaa" {
+          c = false
+      }
+  }
+  ```
+
+- Can also use the `range` method (range clause) to iterate over different data structures.
+
+- Golang allows for loops with no conditions. These can run indefinitely and are can be used in that capacity for web servers, or other things. Can also set the internal logic of a loop with no condition to `break` if a particular event occurs.
+
+### Conditional statements
+
+- All fairly standard
+
+- Can initialise variables in a condition, allowing that variable to have a smaller / more limited scope. Can even use a variable name already in use off larger scope (but not advised ~~)
+
+  ```go
+  b := 13
+  a := 200
+  if b := 100; a > b {
+      fmt.Println(b)				// 100
+      fmt.Println("this is fine")
+  }
+  fmt.Println(b)					// 13
+  ```
+
+  - Seems like a label can be re-used in places of lower scope and once exiting that scope the original value returns:
+
+    ```go
+    b := 13
+    {
+        b := 23
+        fmt.Println(b)		// 23
+    }
+    fmt.Println(b)			// 13
+    
+    // this also applies to loops, but again, not advised
+    for i := 0; i < 2; i++ {
+        for i := 0; i < 2; i++ {
+            fmt.Println("This is valid code")
+        }
+    }
+    ```
+
+- Switch statements: No need to provide `break` statements. In go a switch will terminate after finding the first matching condition. This behaviour can be overridden by  providing a `fallthrough` statement on a condition.
+
+  - Golang switch does have a `default` statement (for if none of the conditions are met)
+  - Can either have switches with a condition or switches without conditions (where the switch expression defaults to `true`)
+  - Can have multiple conditionals on the same `case` statement: just separate by commas
+  - It is *idiomatic* to write `if-else` chains as condition-less switch statements 
+
+```go
+a := 23
+switch {
+case a <= 2021:
+    fmt.Println("this prints")
+    fallthrough
+case a == 23:
+    fmt.Println("also prints")
+case a > 2:
+    fmt.Println("no print here")
+default:
+    fmt.Println("this is the default")
+}
+```
+
+## Arrays Maps and Slices
+
+###  Arrays
+
+https://golang.org/doc/effective_go#arrays
+
+- Fairly standard, except that **the length of the array is part of the arrays type.** [link](https://golang.org/ref/spec#Array_types) This means if trying to copy the values of an array to a new variable (or existing one) **both** the stored type and the size must be the same!
+- No mixed types, golang arrays are single type
+- Usage is different from most languages, generally it is *idiomatic* to use **slices** instead of arrays in most use cases.
+- As with most of golang, pass by value is used and if an array is assigned to a new variable, a **copy** is made (not a pointer)
+  - Golang does allow for pass by reference with a pointer, by using the **address-of operator** `&` along with a function set up to use pointers (will cover later) [link](https://www.golang-book.com/books/intro/8)
+- Initialising arrays
+
+- Initialising and basic array probing/updating:
+
+  ```go
+  var x [4]int
+  x = [4]int{3, 3, 3, 3}
+  
+  y := [4]int{3, 4, 4, 5}
+  
+  // ... will set the size to the number of values passed
+  z := [...]int{3, 3, 3, 3, 3, 3, 3, 3}
+  
+  x[1] = 23
+  fmt.Println(len(x), x[1])	// 4 23
+  ```
+  - The initialisation methods above are examples of **composite literals** [link](https://golang.org/ref/spec#Composite_literals). 
+
+### Slices
+
+- Slices are essentially references to arrays, however they have several methods associated with them which makes them (generally) easier to work with.
+
+  - Slices can be extendable or **dynamically sized**
+  - Slices have append functions associated
+
+- A slice can either be initialised with reference to an array, or in one step (where a hidden reference array is created): *"A slice does not store data it just describes a section of an underlying array"*. 
+
+  ```go
+  var x [4]int
+  x = [4]int{1, 2, 3, 4}
+  // creating a slice from an array
+  y := x[:]				// [1 2 3 4]
+  y2 := x[1:3]			// [2 3]
+  
+  // initialising a slice directly
+  z := []int{1, 2, 3, 4}	// [1 2 3 4]
+  ```
+
+  - slicing indexes are inclusive of the first value and exclusive of the second, so `[1:4]` would create a slice from element 1 up to and including element 3
+  - Changing the elements of a slice also modifies the corresponding elements of the original array (and visa versa)
+
+- A slice has **both** a **length** and a **capacity**. The capacity of a slice is the length of it's underlying array counting from the first element in a slice (capacity only extensible in the 'right' direction). Capacity can be probed with `cap()`:
+
+  ```go
+  x := [10]int{}
+  y := x[0:5]
+  z := x[5:10]
+  
+  fmt.Println(len(x), cap(x))		// 10 10
+  fmt.Println(len(y), cap(y))		// 5 10
+  fmt.Println(len(z), cap(z))		// 5 5
+  ```
+
+#### Appending to slices
+
+https://golang.org/doc/effective_go#append
+
+https://golang.org/ref/spec#Appending_and_copying_slices
+
+- Using the `append()` method, which is variadic and can take any number of (compatible) parameters.
+
+- When extending/appending to a slice with sufficient additional capacity, the underlying array will be updated:
+
+  ```go
+  x := [10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  y := x[0:5]
+  z := x[5:10]
+  
+  fmt.Println(len(y), cap(y))	// 5 10
+  
+  y = append(y, 1, 1, 1, 1, 1)
+  fmt.Println(x, y, z)
+  // [1 2 3 4 5 1 1 1 1 1] [1 2 3 4 5 1 1 1 1 1] [1 1 1 1 1]
+  ```
+
+- If the append exceeds the underlying array's capacity, a new underlying array will be assigned with sufficient capacity. This will not update the original array:
+
+  ```go
+  x := [10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  y := x[0:5]
+  z := x[5:10]
+  
+  fmt.Println(len(y), cap(y))	// 5 10
+  
+  y = append(y, 1, 1, 1, 1, 1, 1)
+  fmt.Println(x, y, z)
+  // [1 2 3 4 5 6 7 8 9 10] [1 2 3 4 5 1 1 1 1 1 1] [6 7 8 9 10]
+  fmt.Println(len(y), cap(y)) // 11 20
+  ```
+
+- A slice can be appended to another slice.  Because of the way arguments are provided to append (variatic) a reference to a slice alone won't work. Instead `...` is used which unpacks a slice into elements, so to append slice `a` to slice `b`:
+
+  ```go
+  a := []int{1,2,3}
+  b := []int{4,5,6}
+  a = append(a, b...)	// [1 2 3 4 5 6]
+  ```
+
+- **Append can be used to delete**. When doing so the elements to the right of the deleted values will be shifted to the left in the underlying array, so just be wary of that~~
+
+  ```go
+  x := [6]int{1, 2, 3, 4, 5, 6}
+  y := x[:]
+  
+  fmt.Println(y, len(y), cap(y))	// [1 2 3 4 5 6] 6 6
+  // removing elements index 2 and 3
+  y = append(x[0:2], x[4:]...)
+  fmt.Println(y, len(y), cap(y))	// [1 2 5 6] 4 6
+  fmt.Println(x)					// [1 2 5 6 5 6]
+  ```
+
+- Extending the underlying array (copying to a larger one when capacity is reached) is rather inefficient. A better idea is to create slices with an underlying array of sufficient size for what you want to do at the outset (reducing or eliminating any array copying).
+
+  - Can either explicitly define the underlying array of the size wanted, then create a slice using it, or can use **make** to create a slice in this manner more directly (using a hidden array you don't need to initialise).
+
+    - `make()` takes 3 arguments: type, length and capacity:
+
+      ```go
+      // int slice, size 50, capacity 100
+      x := make([]int, 50, 100)
+      ```
+
+#### 2D slices
+
+- Sometimes useful to have 2D slices. As slices are extensible, gotta be careful, probably better to use multidimensional arrays for certain things:
+
+  ```go
+  x := []int{1, 3, 5}
+  y := []int{2, 4, 6}
+  
+  z := [][]int{x, y}
+  
+  fmt.Println(z) 	// [[1 3 5] [2 4 6]]
+  z = [][]int{x, x, y, y}
+  fmt.Println(z) // [[1 3 5] [1 3 5] [2 4 6] [2 4 6]]
+  ```
+
+#### Looping over arrays/slices (the range loop)
+
+Can use standard loop and use `i` to get values at index, or can use `range` to perform a ranged loop:
+
+```go
+for i := 0; i < 10; i++ {
+    fmt.Println(x[i])
+}
+
+// returns index and value (can discard by assigning to _ if wanted)
+for i, v := range x {
+    println(i, v)
+}
+```
+
+- Actually instead of `i` and `v` (index and value) golang conventionally uses `i` and `s` with `s` being an assignment statement. so `for i, s := range x {...}`
+
+The `range` loop can also be used to iterate over maps, channels and strings.
+
+- When iterating over strings, the range loop iterates over UTF-8 code points instead of bytes. The index values returned will still be the index of the first byte of the code point:
+
+  ```go
+  for i, ch := range "日本語" {
+      fmt.Printf("%v %c\n", i, ch)
+  }
+  // 0 日
+  // 3 本
+  // 6 語
+  ```
+
+### Maps
+
+- Used for key-value pairs and allows for very fast lookup. Maps are unordered.
+- Provide two types when initialising, the key type and the value type
+- The length of a map is the number of value pairs (or map elements)
+
+```go
+m := map[string]int{
+    "cake":  19,
+    "cloud": 9,
+    "life":  42,
+}
+
+fmt.Println(len(m), m["life"])	// 3 42
+```
+
+- If enter a key that does not exist in a map, the 'zero' value will be returned. Sometimes this is not desired, so the 'comma ok' method can be used to check for this:
+
+  ```go
+  v, ok := m["tea"]
+  fmt.Println(v, ok)	// 0 false
+  
+  if _, ok := m["tea"]; !ok {
+      fmt.Println("key does not exist") // prints
+  }
+  ```
+
+- Adding to a map is simple:
+
+  ```go
+  m["tea"] = 23
+  fmt.Println(m["tea"])	// 23
+  ```
+
+- Looping using `range` is also simple. The order printed may not be very predictable:
+
+  ```go
+  for k, v := range m {
+      fmt.Print(k, " ", v, "\t")	// cake 19 cloud 9 life 42
+  }
+  ```
+
+- Delete from a map using `delete()`:
+
+  ```go
+  delete(m, "tea")
+  ```
+
+  - The delete method does not throw an error if deleting a key which is not in the map. Delete also does not return anything. It is often a good idea to make sure a value exists before deleting using the comma ok:
+
+    ```go
+    if _, ok := m["tea"]; ok {
+        delete(m, "tea")
+    } else {
+        fmt.Println("the tea is already gone!")
+    }
+    ```
+
+## Struct(s)
+
+- Allow for the storing values of multiple types. They store these values in a new type (which needs defining). There are similarities with objects or classes, however it's best to think of structs as their own thing.
+
+- Example directly initialising a struct:
+
+  ```go
+  type person struct {
+      first string
+      last  string
+      age   int
+  }
+  
+  p := person{
+      first: "Bob",
+      last:  "Mccoy",
+      age:   43,
+  }
+  fmt.Println(p) 			// {Bob Mccoy 43}
+  fmt.Println(p.first)	// Bob
+  
+  // or can do (but less clear):
+  p2 := person{"Tim", "Beans", 23}
+  ```
+
+- It is sometimes useful to create a constructor function to create structs of a given type. These are generally used when default initialisation values are not what's wanted. 
+
+  ```go
+  func newPerson(first string, last string, age int) person {
+  	p := person{
+  		first: first,
+  		last:  last,
+  		age:   age,
+  	}
+  	return p
+  }
+  ```
+
+  - Can either return pointers to structs or the struct itself. If return the struct name the constructor `make____` instead of `new____`. Will cover pointers and advantages later~~
+
+- You can use structs to create structs (sort of similar to inheritance):
+
+  ```go
+  type employee struct {
+      person
+      role string
+  }
+  
+  em := employee{
+      person: person{"Chris", "Janson", 53},
+      role:   "internal communications supervisor",
+  }
+  
+  em2 := employee{person{"Jill", "Simon", 23}, "twitter bot farmer"}
+  fmt.Println(em)		//{{Chris Janson 53} internal communications supervisor}
+  
+  fmt.Println(em2)	// {{Jill Simon 23} twitter bot farmer}
+  ```
+
+  - When doing this the 'inner type' gets **promoted** to the 'outer type' - meaning that to access values still use dot notation e.g.:
+
+    ```go
+    fmt.Println(em.first)	// Chris
+    fmt.Println(em2.role)	// twitter bot farmer
+    ```
+
+- **Anonymous structs** are helpful in cases where only need a certain data structure in one or two locations (and defining them globally or explicitly does not seem worthwhile).
+
+  - They can be implemented by essentially writing the struct definition before the data to pass in:
+
+    ```go
+    p := struct {
+        first string
+        last  string
+        age   int
+    }{
+        first: "Bob",
+        last:  "Mccoy",
+        age:   43,
+    }
+    ```
+
+    
