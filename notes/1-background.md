@@ -52,8 +52,7 @@
 
 - like python first letter of an identifier cannot be a number. Anything else other than a reserved keyword should be fine.
 - Naming convention is camelCase rather than using underscores
-  - Not sure if any further conventions like package first letters being capitalised (or methods for that matter)
-    - I prefer lowercase start, so will roll with that
+  - Capitalised identifiers allow functions, types or fields to be exported and accessed from other packages [ref](https://golang.org/ref/spec#Exported_identifiers). (As see later with JSON)
 
 ### Operators
 
