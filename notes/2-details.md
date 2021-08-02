@@ -2,9 +2,9 @@
 
 ## Golang functions and methods
 
-- Golang is **pass by value**. The values of variables are passed to functions in arguments, not the variables themselves. (i.e. the operation of a function should not update the inputs, unless it is set to, returning it and two variables cannot point to the same thing).
+- Golang is **pass by value**. The values of variables are passed to functions in arguments, not the variables themselves. (i.e. the values of variables are passed in arguments, not references to the memory space they take up. Unless set up to a function will not update the variables passed to it. Two variables cannot refer to the same object in memory).
 
-  - There are ways to pass memory addresses to functions to update the values stored there within functions though.
+  - There are ways to pass memory addresses to functions to update the values stored there within functions though (pointers)
 
 - Declaring functions is fairly simple, and familiar, following the general format: `func (r receiver) identifier(parameter(s)) (return(s)) {}`, or can have no return type
 
@@ -44,11 +44,11 @@
   fmt.Println(a)		// 10
   ```
 
-#### Anonymous Functions
+#### Anonymous Functions (Function Literals)
 
 - Inline functions are sometimes useful (especially later with concurrency using `go` keyword)
 
-- Anonymous functions are the same as normal functions, just without the identifier. Only difference is that the call to the function (in the parenthesis) comes immediately after the function:
+- Anonymous functions are the same as normal functions, just without the identifier. Only difference is that the call to the function (in the parenthesis) comes immediately after the function definition:
 
   ```go
   x := func(x int) int {
@@ -746,19 +746,16 @@ Mutex's are one way of preventing data races. a `Mutex`has two methods associate
 A simple example:
 
 ```go
-count := 0
-const gos = 100
+var count int
 var wg sync.WaitGroup
-wg.Add(gos)
-
 var mu sync.Mutex
 
-for i := 0; i < gos; i++ {
+for i := 0; i < 100; i++ {
+    wg.Add(1)
     go func() {
         mu.Lock()
         defer mu.Unlock()
         defer wg.Done()
-
         count++
     }()
 }
@@ -769,3 +766,264 @@ fmt.Println(count)
 - There is also `RWMutex` which allows for locks on reading and writing independently 
 
 ### Channels
+
+https://golang.org/ref/spec#Channel_types
+
+https://golang.org/doc/effective_go#channels
+
+Channels provide a mechanism for concurrently executing functions to communicate with one another, by sending and receiving values of a specified type.
+
+Channels are important, in golang, care was taken to avoid memory sharing and pass by reference. In concurrency this theme is continued with the mantra:
+
+> *Do not communicate by sharing memory; instead, share memory by communicating.*
+>
+> https://go-proverbs.github.io/
+
+Channels allow this to happen by passing values between routines/threads (instead of memory or variable references).
+
+Channels can be unidirectional or bidirectional i.e. can be send only and receive only channels, or channels which perform both.
+
+Channels should be created using `make()` and a capacity. In the case of a channel, the capacity is the size of the **buffer**. Unbuffered channels (capacity 0, default) only communicate if both the sending and receiving channel are ready.
+
+Examples of making unidirectional and bidirectional int channels:
+
+```go
+a := make(chan<- int)		// Send only unbuffered
+b := make(<-chan  int)		// Receive only unbuffered
+c := make(chan int)			// Bidirectional unbuffered
+d := make(chan int, 100)	// Buffer of 100
+```
+
+##### Sending and receiving
+
+Channels pass values using the receive operator:  `<-` .
+
+A **send** statement: `SendStmt = Channel "<-" Expression .`
+
+```go
+ch <- 3 		// send value 3 to channel ch
+```
+
+A **receive** expression:
+
+```go
+v1 := <-ch		// receive calue from ch
+v2, ok := <-ch
+```
+
+A combined send and receive expression (passing on):
+
+```go
+ch2 <- <- ch1
+```
+
+#### Channels block
+
+Without buffers, channels **block**. They block a sender until a receiver is ready and they block receiver until a sender is ready. A go routine will 'sleep' until two channels are ready to send and receive simultaneously i.e. the go routine will sleep until two are synchronised.
+
+This blocking is one way of handling synchronisation. However is not desired for some tasks and there are ways around it if needed.
+
+Simple example:
+
+```go
+c := make(chan int)
+
+go func() {
+    c <- 123		// send 123
+}()
+
+fmt.Println(<-c)	// receive 123
+```
+
+- Receive expressions block until a value is available
+- Communication of a send statement is blocked until a receiver is available (evaluation is completed before communication)
+
+#### Buffered channels
+
+Buffered channels can store a defined number of values without blocking.
+
+They have specific use cases, such as in divide and conquer algorithms, where may know the max number of concurrent operations and returns and want to perform these operations concurrently, but may not want to receive all the values untill they are all done.
+
+Not enforcing synchronisation for each send/receive can also increase efficiency of concurrent operations if handled correctly.
+
+There are other uses too, will return to this later, but for now studying basic synchronisation will stick to unbuffered channels~~
+
+#### Using unidirectional channels
+
+Reminder:
+
+```go
+c1 := make(<-chan int)	// Recceive only
+c1 := make(chan<- int)	// Send only
+```
+
+A bidirectional channel can be converted to or used as a unidirectional channel, however the reverse is not true.
+
+Unidirectional channels are useful when defining functions or methods. Can limit the channel passed into a function to act as a send only or receive only channel.
+
+Simple example:
+
+```go
+func main() {
+	c := make(chan int)
+
+	go send(23, c)
+	a := receive(c)
+	fmt.Println(a)
+}
+
+func send(a int, c chan<- int) {
+	c <- a
+}
+
+func receive(c <-chan int) int {
+	return <-c
+}
+```
+
+#### Using channels (general)
+
+- You can **range** over a channel. Unlike most ranges where there are a fixed number of items in the object being ranged (when starting the loop), with ranges the program does not know how many items it will process. When ranging over a channel the program essentially waits for all the values to be presented. 
+  - In order to tell the program when to end waiting you need to **close** the channel.
+  - A **range** on a channel will block (until a close is encountered)
+
+```go
+c := make(chan int)
+
+go func() {
+    for i := 0; i < 1000; i++ {
+        c <- i
+    }
+    close(c)
+}()
+
+for v := range c {
+    fmt.Println(v)
+}
+```
+
+- The **select statement** is associated with channels and sending/receiving. The select statement is very similar to a **switch** with multiple **cases**, however all cases refer to communication options. 
+
+  ```go
+  even := make(chan int)
+  odd := make(chan int)
+  quit := make(chan int)
+  
+  go func() {
+      for i := 0; i < 100; i += 2 {
+          even <- i
+      }
+      quit <- 0
+  }()
+  
+  go func() {
+      for i := 1; i < 100; i += 2 {
+          odd <- i
+      }
+      quit <- 0
+  }()
+  
+  for {
+      select {
+      case <-even:
+          fmt.Println("even")
+      case <-odd:
+          fmt.Println("odd")
+      case <-quit:
+          return
+      }
+  }
+  
+  fmt.Println("Done")
+  ```
+
+  - Careful, a `break` in a select breaks out of the select, not any containing loop.
+  - The distinction from a switch is likely that the select statement will block.
+
+- When receiving from a stream, can assign the value to a single variable, or use 'comma ok' to also return a bool which idicates whether the communication succeeded. (`true` indicates the value received was delivered by a successful send operation. Zero values may be received even without a successful send operation, in this case `ok` will be `false`):
+
+  ```go
+  even := make(chan int)
+  odd := make(chan int)
+  
+  go func() {
+      for i := 0; i < 100; i += 2 {
+          even <- i
+      }
+      close(even)
+  }()
+  
+  go func() {
+      for i := 1; i < 100; i += 2 {
+          odd <- i
+      }
+      close(odd)
+  }()
+  
+  evencount := 0
+  oddcount := 0
+  done := false
+  for done == false {
+  
+      select {
+      case _, ok := <-even:
+          if ok != false {
+              fmt.Println("even")
+              evencount++
+          } else {
+              fmt.Println("Even finsihed first", evencount)
+              done = true
+          }
+      case _, ok := <-odd:
+          if ok != false {
+              fmt.Println("odd")
+              oddcount++
+          } else {
+              fmt.Println("Odd finsihed first", oddcount)
+              done = true
+          }
+      }
+  }
+  ```
+
+- Channels are often passed as inputs and outputs of functions. When returning a channel, the channel will not necessarily be 'complete', values may still be being added to the channel concurrently *after* it is returned. The channel may be returned and fed into another function, *before* any values are put into the channel. (returns do not block!) e.g.
+
+  ```go
+  func gen() <-chan int {
+  	c := make(chan int)
+  
+  	go func() {
+  		for i := 0; i < 10; i++ {
+  			c <- i
+  		}
+  		close(c)
+  	}()
+  
+  	return c
+  }
+  
+  // c is returned (likely) before any values sent through the channel
+  ```
+
+#### Concurrent patterns - fan out, fan in
+
+https://medium.com/@thejasbabu/concurrency-patterns-golang-5c5e1bcd0833
+
+https://blog.golang.org/pipelines
+
+https://talks.golang.org/2012/concurrency.slide#25
+
+Fanning out and fanning in are common design patterns in concurrent programming (in golang). It is often used to execute multiple functions concurrently, then aggregate the results (think divide and conquer).
+
+In other languages similar processes are sometimes referred to as multiplexing and demultiplexing.
+
+#### Context
+
+https://blog.golang.org/context
+
+Often (especially in web) a request my spin off into several go routines (or processes). There is a need if a request is cancelled, to also cancel those routines, to save resources. This can also occur with processes and sub-processes, you want the associated sub-processes to end if the main process ends.
+
+The 'context' package which helps send deadlines, cancellations and 'request scoped values' across API boundaries.
+
+## Error Handling
+

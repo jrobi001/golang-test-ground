@@ -2,10 +2,9 @@
 
 ## Background/ Install stuff
 
-- Workspace three main folders: bin, pkg and src.
-  - Within src will be projects etc.
-
-- Apparently method has changed, now instead of using env variables like gopath, use go modules [link](https://stackoverflow.com/questions/10838469/how-to-compile-go-program-consisting-of-multiple-files/61793820#61793820)
+- Workspace used to have three main folders: bin, pkg and src
+  
+- Method has now changed, instead of using env variables like gopath, use go modules [link](https://stackoverflow.com/questions/10838469/how-to-compile-go-program-consisting-of-multiple-files/61793820#61793820)
 
 ### Go commands
 
